@@ -26,6 +26,9 @@ importers:
       nanoid:
         specifier: ^5.1.5
         version: 5.1.5
+      ws:
+        specifier: ^8.18.2
+        version: 8.18.2
       zod:
         specifier: ^3.25.67
         version: 3.25.67
@@ -87,9 +90,6 @@ importers:
       typescript-eslint:
         specifier: ^8.34.1
         version: 8.34.1(eslint@9.29.0)(typescript@5.8.3)
-      ws:
-        specifier: ^8.18.2
-        version: 8.18.2
 
 packages:
 

@@ -20,8 +20,7 @@
     "ci": "pnpm lint:check && pnpm format:check && pnpm type-check && pnpm build && pnpm test",
     "docker:build": "docker build -t url-shortener .",
     "docker:run": "docker run -p 3000:3000 -p 3001:3001 url-shortener",
-    "clean": "rm -rf dist coverage",
-    "prestart": "pnpm build"
+    "clean": "rm -rf dist coverage"
   },
   "keywords": [],
   "author": "",
@@ -47,8 +46,7 @@
     "ts-jest": "^29.4.0",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.34.1",
-    "ws": "^8.18.2"
+    "typescript-eslint": "^8.34.1"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",
@@ -57,6 +55,7 @@
     "@fastify/websocket": "^11.1.0",
     "fastify": "^5.4.0",
     "nanoid": "^5.1.5",
+    "ws": "^8.18.2",
     "zod": "^3.25.67"
   }
 }

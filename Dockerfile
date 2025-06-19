@@ -17,7 +17,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # Build the application
-RUN pnpm build
+RUN rm -f .tsbuildinfo && pnpm build
 
 # Production stage
 FROM node:20-alpine AS production

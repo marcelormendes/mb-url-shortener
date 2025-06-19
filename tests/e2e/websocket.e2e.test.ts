@@ -61,7 +61,6 @@ describe('WebSocket E2E Tests', () => {
 
     it('should allow only one WebSocket connection at a time', async () => {
       const ws1 = new WebSocket(testServer.getWsUrl())
-      const ws2 = new WebSocket(testServer.getWsUrl())
 
       // Wait for first connection to establish
       await new Promise<void>((resolve, reject) => {
@@ -80,6 +79,9 @@ describe('WebSocket E2E Tests', () => {
         })
       })
 
+      // Add small delay to ensure connection is stable across Node.js versions
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
       // Ensure first connection is actually open
       expect(ws1.readyState).toBe(WebSocket.OPEN)
 
@@ -91,6 +93,9 @@ describe('WebSocket E2E Tests', () => {
           ws1.on('close', () => resolve())
         }
       })
+
+      // Now create the second connection after first is established
+      const ws2 = new WebSocket(testServer.getWsUrl())
 
       // Wait for second connection to establish (should close first one)
       await new Promise<void>((resolve, reject) => {

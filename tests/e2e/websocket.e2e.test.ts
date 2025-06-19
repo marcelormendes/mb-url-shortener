@@ -80,6 +80,7 @@ describe('WebSocket E2E Tests', () => {
         })
       })
 
+      // Ensure first connection is actually open
       expect(ws1.readyState).toBe(WebSocket.OPEN)
 
       // Wait for second connection to establish (should close first one)
@@ -101,8 +102,27 @@ describe('WebSocket E2E Tests', () => {
 
       expect(ws2.readyState).toBe(WebSocket.OPEN)
 
-      // Give some time for the first connection to be closed by the server
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      // Wait for the first connection to be closed by the server
+      // In CI environments, this might take longer
+      await new Promise<void>((resolve, reject) => {
+        const startTime = Date.now()
+        const timeout = 3000 // 3 seconds max wait
+
+        const checkClosed = () => {
+          if (ws1.readyState === WebSocket.CLOSED) {
+            resolve()
+          } else if (Date.now() - startTime > timeout) {
+            reject(
+              new Error(
+                `First WebSocket did not close within ${timeout}ms. Current state: ${ws1.readyState}`,
+              ),
+            )
+          } else {
+            setTimeout(checkClosed, 50)
+          }
+        }
+        checkClosed()
+      })
 
       // First connection should be closed
       expect(ws1.readyState).toBe(WebSocket.CLOSED)

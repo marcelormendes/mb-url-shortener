@@ -258,124 +258,33 @@ pnpm test:watch
 
 ## CI/CD Pipeline
 
-### GitHub Actions Workflow
+Automated GitHub Actions workflow that runs on every push and pull request:
 
-The project includes a comprehensive CI/CD pipeline that automatically:
+### What it does:
 
-#### **🔍 Quality Assurance (Every Push/PR):**
-- **Linting**: ESLint checks for code quality and style
-- **Type Checking**: TypeScript compilation validation
-- **Testing**: Complete unit and E2E test suite with coverage
-- **Security Audit**: Dependency vulnerability scanning
-- **Multi-Node Testing**: Tests against Node.js 18.x and 20.x
+- ✅ **Lint & Test**: Code quality checks and full test suite
+- ✅ **Type Check**: TypeScript compilation validation
+- ✅ **Security**: Dependency vulnerability scanning
+- ✅ **Build**: Docker image creation and testing
 
-#### **🐳 Containerization:**
-- **Docker Build**: Multi-stage Docker image creation
-- **Container Testing**: Health checks and API validation
-- **Registry Push**: Automatic push to GitHub Container Registry (main branch)
-
-#### **🚀 Deployment:**
-- **Staging**: Auto-deploy to staging on `develop` branch
-- **Production**: Auto-deploy to production on `main` branch
-- **Notifications**: Deployment status notifications
-
-### Pipeline Stages
-
-```mermaid
-graph LR
-    A[Push/PR] --> B[Lint & Test]
-    B --> C[Security Audit]
-    B --> D[Docker Build]
-    C --> E[Deploy Staging]
-    D --> E
-    C --> F[Deploy Production]
-    D --> F
-    E --> G[Notifications]
-    F --> G
-```
-
-### Local CI Simulation
-
-Run the complete CI pipeline locally:
+### Local Development
 
 ```bash
-# Run all CI checks
+# Run all CI checks locally
 pnpm ci
 
-# Individual steps
-pnpm lint:check       # Check code style
-pnpm format:check     # Check formatting
-pnpm type-check       # TypeScript validation
-pnpm build            # Build project
-pnpm test             # Run all tests
-pnpm test:coverage    # Generate coverage report
+# Individual commands
+pnpm lint && pnpm build && pnpm test
 ```
 
-### Docker Development
+### Docker
 
 ```bash
-# Build Docker image
+# Build and run containerized app
 pnpm docker:build
-
-# Run containerized application
 pnpm docker:run
-
-# Test Docker image health
-curl http://localhost:3000/documentation
 ```
-
-### Environment Setup for CI/CD
-
-#### Required Secrets (GitHub Repository Settings):
-
-1. **CODECOV_TOKEN**: For code coverage reporting
-2. **GITHUB_TOKEN**: Automatically provided for GitHub Actions
-
-#### Optional Secrets for Deployment:
-
-3. **STAGING_HOST**: Staging server hostname
-4. **STAGING_USER**: SSH user for staging deployment
-5. **STAGING_KEY**: SSH private key for staging access
-6. **PRODUCTION_HOST**: Production server hostname  
-7. **PRODUCTION_USER**: SSH user for production deployment
-8. **PRODUCTION_KEY**: SSH private key for production access
-
-### Branch Strategy
-
-- **`main`**: Production-ready code, triggers production deployment
-- **`develop`**: Development branch, triggers staging deployment  
-- **`feature/*`**: Feature branches, runs tests only
-- **Pull Requests**: Full quality checks required before merge
-
-### Quality Gates
-
-All the following must pass before deployment:
-
-✅ **Code Quality**: ESLint with no errors  
-✅ **Formatting**: Prettier formatting compliance  
-✅ **Type Safety**: TypeScript compilation success  
-✅ **Test Coverage**: All tests passing with coverage reporting  
-✅ **Security**: No critical/high vulnerability dependencies  
-✅ **Build**: Successful production build  
-✅ **Container**: Docker image builds and runs successfully  
-
-### Monitoring & Alerts
-
-The CI/CD pipeline includes:
-
-- **Build Status Badges**: Real-time pipeline status
-- **Coverage Reports**: Automated coverage tracking via Codecov
-- **Security Alerts**: Dependabot for dependency updates
-- **Deployment Notifications**: Success/failure alerts
-
-### Performance Optimization
-
-- **Caching**: Docker layer caching and pnpm cache
-- **Parallel Jobs**: Matrix builds for multiple Node.js versions
-- **Artifact Storage**: Build artifacts cached between jobs
-- **Incremental Testing**: Only run tests for changed files (when configured)
 
 ## License
 
 ISC
-# mb-url-shortener

@@ -1,4 +1,4 @@
-import type { UrlMapping } from '../types/url.types.js'
+import type { UrlMapping } from '../../types/url.types.js'
 import { UrlException } from './url.exceptions.js'
 
 /**

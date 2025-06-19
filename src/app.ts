@@ -6,7 +6,7 @@ import swaggerUi from '@fastify/swagger-ui'
 import websocket from '@fastify/websocket'
 import { env } from './config/env.js'
 import { UrlRoutes } from './routes/url.routes.js'
-import { WebSocketManagerService } from './services/websocket-manager.service.js'
+import { WebSocketManagerService } from './services/websocket/websocket-manager.service.js'
 import { CustomException } from './utils/custom.exceptions.js'
 
 /**

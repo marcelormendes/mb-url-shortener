@@ -1,5 +1,5 @@
 import { CustomException } from '../../src/utils/custom.exceptions'
-import { UrlException, errorCodes } from '../../src/services/url.exceptions'
+import { UrlException, errorCodes } from '../../src/services/url/url.exceptions'
 
 describe('CustomException', () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
-import { UrlStorageService } from '../../src/services/url-storage.service'
-import { UrlException } from '../../src/services/url.exceptions'
+import { UrlStorageService } from '../../src/services/url/url-storage.service'
+import { UrlException } from '../../src/services/url/url.exceptions'
 import type { UrlMapping } from '../../src/types/url.types'
 
 describe('UrlStorageService', () => {

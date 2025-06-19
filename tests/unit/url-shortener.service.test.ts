@@ -1,6 +1,6 @@
-import { UrlShortenerService } from '../../src/services/url-shortener.service'
-import { UrlStorageService } from '../../src/services/url-storage.service'
-import { UrlException } from '../../src/services/url.exceptions'
+import { UrlShortenerService } from '../../src/services/url/url-shortener.service'
+import { UrlStorageService } from '../../src/services/url/url-storage.service'
+import { UrlException } from '../../src/services/url/url.exceptions'
 
 // Mock nanoid
 jest.mock('nanoid', () => ({

@@ -90,7 +90,7 @@ jobs:
       run: pnpm audit --audit-level moderate
 
     - name: Run dependency vulnerability check
-      run: pnpm audit --fix --dry-run
+      run: pnpm audit --fix
 
   docker-build:
     name: Docker Build & Test

@@ -61,7 +61,6 @@ describe('WebSocket E2E Tests', () => {
 
     it('should allow only one WebSocket connection at a time', async () => {
       const ws1 = new WebSocket(testServer.getWsUrl())
-      const ws2 = new WebSocket(testServer.getWsUrl())
 
       // Wait for first connection to establish
       await new Promise<void>((resolve, reject) => {
@@ -80,7 +79,23 @@ describe('WebSocket E2E Tests', () => {
         })
       })
 
+      // Add small delay to ensure connection is stable across Node.js versions
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      // Ensure first connection is actually open
       expect(ws1.readyState).toBe(WebSocket.OPEN)
+
+      // Set up listener for when first connection gets closed
+      const ws1ClosedPromise = new Promise<void>((resolve) => {
+        if (ws1.readyState === WebSocket.CLOSED) {
+          resolve()
+        } else {
+          ws1.on('close', () => resolve())
+        }
+      })
+
+      // Now create the second connection after first is established
+      const ws2 = new WebSocket(testServer.getWsUrl())
 
       // Wait for second connection to establish (should close first one)
       await new Promise<void>((resolve, reject) => {
@@ -101,8 +116,17 @@ describe('WebSocket E2E Tests', () => {
 
       expect(ws2.readyState).toBe(WebSocket.OPEN)
 
-      // Give some time for the first connection to be closed by the server
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      // Wait for the first connection to be closed by the server
+      // Use event-based waiting instead of polling
+      await Promise.race([
+        ws1ClosedPromise,
+        new Promise((_, reject) => {
+          setTimeout(
+            () => reject(new Error('First WebSocket did not close within 5 seconds')),
+            5000,
+          )
+        }),
+      ])
 
       // First connection should be closed
       expect(ws1.readyState).toBe(WebSocket.CLOSED)

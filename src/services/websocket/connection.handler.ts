@@ -15,7 +15,9 @@ export class ConnectionHandler {
     // Only allow one client at a time
     if (this.currentClient) {
       console.log('New client connected, closing previous connection')
-      this.currentClient.close()
+      const previousClient = this.currentClient
+      this.currentClient = null
+      previousClient.close()
     }
 
     this.currentClient = ws

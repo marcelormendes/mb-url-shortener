@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>URL Shortener WebSocket Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        input {
+            width: 400px;
+            padding: 8px;
+            margin: 5px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .output {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .shortened-url {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .shortened-url a {
+            color: #0c5460;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔗 URL Shortener WebSocket Test</h1>
+    
+    <div class="container">
+        <h3>WebSocket Connection</h3>
+        <div id="connectionStatus" class="status disconnected">❌ Disconnected</div>
+        <button id="connectBtn" onclick="connectWebSocket()">Connect to WebSocket</button>
+        <button id="disconnectBtn" onclick="disconnectWebSocket()" disabled>Disconnect</button>
+    </div>
+
+    <div class="container">
+        <h3>Shorten URL</h3>
+        <input type="url" id="urlInput" placeholder="Enter URL to shorten (e.g., https://www.google.com)" required>
+        <br>
+        <button id="shortenBtn" onclick="shortenUrl()" disabled>Shorten URL</button>
+    </div>
+
+    <div class="container">
+        <h3>Output</h3>
+        <div id="output" class="output">Ready to test...\n</div>
+        <button onclick="clearOutput()">Clear Output</button>
+    </div>
+
+    <div class="container">
+        <h3>Instructions</h3>
+        <ol>
+            <li><strong>Start the server:</strong> Run <code>pnpm start</code> in your terminal</li>
+            <li><strong>Connect WebSocket:</strong> Click "Connect to WebSocket" button above</li>
+            <li><strong>Enter a URL:</strong> Type a valid URL in the input field</li>
+            <li><strong>Shorten URL:</strong> Click "Shorten URL" to create a shortened version</li>
+            <li><strong>Test the result:</strong> Click on the generated shortened URL to test it</li>
+        </ol>
+        <p><strong>Expected behavior:</strong> When you shorten a URL, you'll receive the shortened URL via WebSocket and can click it to verify it redirects to the original URL.</p>
+    </div>
+
+    <script>
+        let ws = null;
+        const output = document.getElementById('output');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const shortenBtn = document.getElementById('shortenBtn');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            output.textContent += `[${timestamp}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function updateConnectionStatus(connected) {
+            if (connected) {
+                connectionStatus.textContent = '✅ Connected';
+                connectionStatus.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                shortenBtn.disabled = false;
+            } else {
+                connectionStatus.textContent = '❌ Disconnected';
+                connectionStatus.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                shortenBtn.disabled = true;
+            }
+        }
+
+        function connectWebSocket() {
+            try {
+                ws = new WebSocket('ws://localhost:3001');
+                log('Connecting to WebSocket...');
+
+                ws.onopen = function() {
+                    log('✅ WebSocket connected successfully!');
+                    updateConnectionStatus(true);
+                };
+
+                ws.onmessage = function(event) {
+                    try {
+                        const message = JSON.parse(event.data);
+                        log(`📨 Received message: ${JSON.stringify(message, null, 2)}`);
+                        
+                        if (message.type === 'URL_SHORTENED') {
+                            const shortenedUrl = message.data.shortenedURL;
+                            log(`🎉 URL shortened successfully!`);
+                            log(`🔗 Shortened URL: ${shortenedUrl}`);
+                            
+                            // Create a separate clickable link section
+                            const linkContainer = document.createElement('div');
+                            linkContainer.className = 'shortened-url';
+                            linkContainer.innerHTML = `
+                                <strong>🔗 Click to test your shortened URL:</strong><br>
+                                <a href="${shortenedUrl}" target="_blank" style="font-size: 16px; padding: 8px 12px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; display: inline-block; margin: 5px 0;">${shortenedUrl}</a><br>
+                                <small>This link should redirect you to the original URL</small>
+                            `;
+                            
+                            // Insert the clickable link after the output div
+                            const container = output.parentElement;
+                            const existingLinks = container.querySelectorAll('.shortened-url');
+                            existingLinks.forEach(link => link.remove()); // Remove old links
+                            container.insertBefore(linkContainer, output.nextSibling);
+                            
+                            // Send acknowledgment
+                            const ackMessage = {
+                                type: 'ACKNOWLEDGMENT',
+                                messageId: message.messageId
+                            };
+                            ws.send(JSON.stringify(ackMessage));
+                            log(`📤 Sent acknowledgment for message ${message.messageId}`);
+                        }
+                    } catch (error) {
+                        log(`❌ Error parsing message: ${error.message}`);
+                    }
+                };
+
+                ws.onclose = function(event) {
+                    log(`🔌 WebSocket disconnected (Code: ${event.code}, Reason: ${event.reason || 'No reason provided'})`);
+                    updateConnectionStatus(false);
+                    ws = null;
+                };
+
+                ws.onerror = function(error) {
+                    log(`❌ WebSocket error: ${error.message || 'Unknown error'}`);
+                    updateConnectionStatus(false);
+                };
+
+            } catch (error) {
+                log(`❌ Failed to connect: ${error.message}`);
+                updateConnectionStatus(false);
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+                log('🔌 Disconnecting WebSocket...');
+            }
+        }
+
+        function shortenUrl() {
+            const url = document.getElementById('urlInput').value.trim();
+            
+            if (!url) {
+                alert('Please enter a URL');
+                return;
+            }
+
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('WebSocket is not connected. Please connect first.');
+                return;
+            }
+
+            log(`📤 Sending URL to shorten: ${url}`);
+
+            fetch('http://localhost:3000/url', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ url: url })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                log(`✅ Server response: ${data.message}`);
+                log('📡 HTTP request completed (URL may have already been delivered via WebSocket)');
+            })
+            .catch(error => {
+                log(`❌ Error sending request: ${error.message}`);
+            });
+        }
+
+        function clearOutput() {
+            output.innerHTML = 'Output cleared...\n';
+        }
+
+        // Handle Enter key in URL input
+        document.getElementById('urlInput').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                shortenUrl();
+            }
+        });
+
+        // Initialize
+        updateConnectionStatus(false);
+        log('🚀 WebSocket test client loaded. Click "Connect to WebSocket" to start!');
+    </script>
+</body>
+</html>

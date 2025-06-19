@@ -1,0 +1,83 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+build
+.output
+public/build
+.astro
+.next
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment variables
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Testing
+coverage
+.nyc_output
+/playwright-report/
+/test-results/
+.coverage
+*.lcov
+
+# Cache
+.cache
+.turbo
+.webpack
+.eslintcache
+*.tsbuildinfo
+
+# Editor directories and files
+.cursor/*
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.project
+.classpath
+*.sublime-workspace
+*.sublime-project
+.settings/
+
+# Miscellaneous
+temp
+tmp
+.tmp
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.swp
+*.bak
+*.orig
+*.local
+
+# AI specific files
+CLAUDE.md
+**/CLAUDE.md
+.vscode

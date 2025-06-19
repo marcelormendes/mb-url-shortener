@@ -20,8 +20,7 @@
     "ci": "pnpm lint:check && pnpm format:check && pnpm type-check && pnpm build && pnpm test",
     "docker:build": "docker build -t url-shortener .",
     "docker:run": "docker run -p 3000:3000 -p 3001:3001 url-shortener",
-    "clean": "rm -rf dist coverage",
-    "prestart": "pnpm build"
+    "clean": "rm -rf dist coverage"
   },
   "keywords": [],
   "author": "",

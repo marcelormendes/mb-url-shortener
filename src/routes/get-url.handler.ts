@@ -1,8 +1,8 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { urlCodeSchema } from '../schemas/url.schemas.js'
 import type { OriginalUrlResponse } from '../types/api.types.js'
-import { UrlStorageService } from '../services/url-storage.service.js'
-import { UrlException } from '../services/url.exceptions.js'
+import { UrlStorageService } from '../services/url/url-storage.service.js'
+import { UrlException } from '../services/url/url.exceptions.js'
 import { HttpStatus } from './http-status.js'
 
 /**

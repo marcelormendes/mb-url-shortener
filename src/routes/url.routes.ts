@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import type { ShortenUrlRequest } from '../types/api.types.js'
-import { UrlShortenerService } from '../services/url-shortener.service.js'
-import { UrlStorageService } from '../services/url-storage.service.js'
-import { WebSocketManagerService } from '../services/websocket-manager.service.js'
+import { UrlShortenerService } from '../services/url/url-shortener.service.js'
+import { UrlStorageService } from '../services/url/url-storage.service.js'
+import { WebSocketManagerService } from '../services/websocket/websocket-manager.service.js'
 import { ShortenUrlHandler } from './shorten-url.handler.js'
 import { GetUrlHandler } from './get-url.handler.js'
 import {

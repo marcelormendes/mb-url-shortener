@@ -83,6 +83,15 @@ describe('WebSocket E2E Tests', () => {
       // Ensure first connection is actually open
       expect(ws1.readyState).toBe(WebSocket.OPEN)
 
+      // Set up listener for when first connection gets closed
+      const ws1ClosedPromise = new Promise<void>((resolve) => {
+        if (ws1.readyState === WebSocket.CLOSED) {
+          resolve()
+        } else {
+          ws1.on('close', () => resolve())
+        }
+      })
+
       // Wait for second connection to establish (should close first one)
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -103,26 +112,16 @@ describe('WebSocket E2E Tests', () => {
       expect(ws2.readyState).toBe(WebSocket.OPEN)
 
       // Wait for the first connection to be closed by the server
-      // In CI environments, this might take longer
-      await new Promise<void>((resolve, reject) => {
-        const startTime = Date.now()
-        const timeout = 3000 // 3 seconds max wait
-
-        const checkClosed = () => {
-          if (ws1.readyState === WebSocket.CLOSED) {
-            resolve()
-          } else if (Date.now() - startTime > timeout) {
-            reject(
-              new Error(
-                `First WebSocket did not close within ${timeout}ms. Current state: ${ws1.readyState}`,
-              ),
-            )
-          } else {
-            setTimeout(checkClosed, 50)
-          }
-        }
-        checkClosed()
-      })
+      // Use event-based waiting instead of polling
+      await Promise.race([
+        ws1ClosedPromise,
+        new Promise((_, reject) => {
+          setTimeout(
+            () => reject(new Error('First WebSocket did not close within 5 seconds')),
+            5000,
+          )
+        }),
+      ])
 
       // First connection should be closed
       expect(ws1.readyState).toBe(WebSocket.CLOSED)

@@ -2,9 +2,9 @@ import type { FastifyRequest, FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { shortenUrlRequestSchema } from '../schemas/url.schemas.js'
 import type { ShortenUrlRequest } from '../types/api.types.js'
-import { UrlShortenerService } from '../services/url-shortener.service.js'
-import { WebSocketManagerService } from '../services/websocket-manager.service.js'
-import { UrlException } from '../services/url.exceptions.js'
+import { UrlShortenerService } from '../services/url/url-shortener.service.js'
+import { WebSocketManagerService } from '../services/websocket/websocket-manager.service.js'
+import { UrlException } from '../services/url/url.exceptions.js'
 import { HttpStatus } from './http-status.js'
 
 /**

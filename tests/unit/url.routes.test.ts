@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 import { UrlRoutes } from '../../src/routes/url.routes'
-import { WebSocketManagerService } from '../../src/services/websocket-manager.service'
-import { UrlException } from '../../src/services/url.exceptions'
-import { UrlShortenerService } from '../../src/services/url-shortener.service'
-import { UrlStorageService } from '../../src/services/url-storage.service'
+import { WebSocketManagerService } from '../../src/services/websocket/websocket-manager.service'
+import { UrlException } from '../../src/services/url/url.exceptions'
+import { UrlShortenerService } from '../../src/services/url/url-shortener.service'
+import { UrlStorageService } from '../../src/services/url/url-storage.service'
 import type { FastifyInstance } from 'fastify'
 
 // Mock services
-jest.mock('../../src/services/url-storage.service')
-jest.mock('../../src/services/url-shortener.service')
-jest.mock('../../src/services/websocket-manager.service')
+jest.mock('../../src/services/url/url-storage.service')
+jest.mock('../../src/services/url/url-shortener.service')
+jest.mock('../../src/services/websocket/websocket-manager.service')
 
 describe('UrlRoutes', () => {
   let urlRoutes: UrlRoutes

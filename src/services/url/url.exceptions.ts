@@ -1,4 +1,4 @@
-import { CustomException } from '../utils/custom.exceptions.js'
+import { CustomException } from '../../utils/custom.exceptions.js'
 
 /**
  * Error codes for URL-related operations

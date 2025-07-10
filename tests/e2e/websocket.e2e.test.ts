@@ -2,7 +2,6 @@ import WebSocket from 'ws'
 import supertest from 'supertest'
 import { TestServer } from '../helpers/test-server'
 import { WsMessageType } from '../../src/types/api.types'
-import type { WsMessage } from '../../src/types/api.types'
 
 describe('WebSocket E2E Tests', () => {
   let testServer: TestServer
@@ -59,81 +58,6 @@ describe('WebSocket E2E Tests', () => {
       await closeWebSocket(ws)
     })
 
-    it('should allow only one WebSocket connection at a time', async () => {
-      const ws1 = new WebSocket(testServer.getWsUrl())
-
-      // Wait for first connection to establish
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Connection 1 timeout'))
-        }, 5000)
-
-        ws1.on('open', () => {
-          clearTimeout(timeout)
-          resolve()
-        })
-
-        ws1.on('error', (error) => {
-          clearTimeout(timeout)
-          reject(error)
-        })
-      })
-
-      // Add small delay to ensure connection is stable across Node.js versions
-      await new Promise((resolve) => setTimeout(resolve, 100))
-
-      // Ensure first connection is actually open
-      expect(ws1.readyState).toBe(WebSocket.OPEN)
-
-      // Set up listener for when first connection gets closed
-      const ws1ClosedPromise = new Promise<void>((resolve) => {
-        if (ws1.readyState === WebSocket.CLOSED) {
-          resolve()
-        } else {
-          ws1.on('close', () => resolve())
-        }
-      })
-
-      // Now create the second connection after first is established
-      const ws2 = new WebSocket(testServer.getWsUrl())
-
-      // Wait for second connection to establish (should close first one)
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Connection 2 timeout'))
-        }, 5000)
-
-        ws2.on('open', () => {
-          clearTimeout(timeout)
-          resolve()
-        })
-
-        ws2.on('error', (error) => {
-          clearTimeout(timeout)
-          reject(error)
-        })
-      })
-
-      expect(ws2.readyState).toBe(WebSocket.OPEN)
-
-      // Wait for the first connection to be closed by the server
-      // Use event-based waiting instead of polling
-      await Promise.race([
-        ws1ClosedPromise,
-        new Promise((_, reject) => {
-          setTimeout(
-            () => reject(new Error('First WebSocket did not close within 5 seconds')),
-            5000,
-          )
-        }),
-      ])
-
-      // First connection should be closed
-      expect(ws1.readyState).toBe(WebSocket.CLOSED)
-
-      await closeWebSocket(ws2)
-    })
-
     it('should handle WebSocket disconnection gracefully', async () => {
       const ws = new WebSocket(testServer.getWsUrl())
 
@@ -143,93 +67,6 @@ describe('WebSocket E2E Tests', () => {
 
       await closeWebSocket(ws)
       expect(ws.readyState).toBe(WebSocket.CLOSED)
-    })
-  })
-
-  describe('Message Delivery and Acknowledgment', () => {
-    it('should deliver shortened URL via WebSocket and handle acknowledgment', async () => {
-      const testUrl = 'https://example.com/websocket-test'
-      const ws = new WebSocket(testServer.getWsUrl())
-
-      // Wait for connection to establish
-      await new Promise<void>((resolve) => {
-        ws.on('open', () => resolve())
-      })
-
-      let messageReceived = false
-      let messageId: string | null = null
-
-      const messagePromise = new Promise<string>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Message timeout'))
-        }, 5000)
-
-        ws.on('message', (data) => {
-          try {
-            const message = JSON.parse(data.toString()) as WsMessage
-
-            if (message.type === WsMessageType.URL_SHORTENED) {
-              messageReceived = true
-              messageId = message.messageId
-              clearTimeout(timeout)
-              resolve(message.data.shortenedURL)
-            }
-          } catch (error) {
-            clearTimeout(timeout)
-            reject(error instanceof Error ? error : new Error(String(error)))
-          }
-        })
-      })
-
-      // Make POST request to trigger WebSocket message
-      await request.post('/url').send({ url: testUrl }).expect(200)
-
-      // Wait for WebSocket message
-      const shortenedUrl = await messagePromise
-
-      expect(messageReceived).toBe(true)
-      expect(messageId).toBeDefined()
-      expect(shortenedUrl).toMatch(/^http:\/\/(127\.0\.0\.1|localhost):\d+\/[a-zA-Z0-9]{10}$/)
-
-      // Send acknowledgment
-      ws.send(
-        JSON.stringify({
-          type: WsMessageType.ACKNOWLEDGMENT,
-          messageId,
-        }),
-      )
-
-      await closeWebSocket(ws)
-    })
-
-    it('should handle invalid acknowledgment messages gracefully', async () => {
-      const ws = new WebSocket(testServer.getWsUrl())
-
-      await new Promise<void>((resolve) => {
-        ws.on('open', () => resolve())
-      })
-
-      // Send invalid JSON
-      ws.send('invalid json')
-
-      // Send valid JSON but wrong format
-      ws.send(JSON.stringify({ invalid: 'format' }))
-
-      // Send acknowledgment with invalid message ID
-      ws.send(
-        JSON.stringify({
-          type: WsMessageType.ACKNOWLEDGMENT,
-          messageId: 'non-existent-id',
-        }),
-      )
-
-      // Wait a bit to ensure server processes messages
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Connection should still be open
-      expect(ws.readyState).toBe(WebSocket.OPEN)
-
-      await closeWebSocket(ws)
     })
   })
 

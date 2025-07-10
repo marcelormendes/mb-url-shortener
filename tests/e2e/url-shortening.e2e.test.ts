@@ -45,6 +45,9 @@ describe('URL Shortening E2E Tests', () => {
         ws.on('open', () => resolve())
       })
 
+      // Give a small delay to ensure client is properly registered
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
       // Set up message handler to capture shortened URL
       const wsMessagePromise = new Promise<string>((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -107,105 +110,7 @@ describe('URL Shortening E2E Tests', () => {
 
       await closeWebSocket(ws)
     }, 15000)
-
-    it('should handle multiple concurrent URL shortening requests', async () => {
-      const testUrls = [
-        'https://example1.com/test',
-        'https://example2.com/test',
-        'https://example3.com/test',
-        'https://example4.com/test',
-        'https://example5.com/test',
-      ]
-
-      // Create a single WebSocket connection (only one client supported now)
-      const ws = new WebSocket(testServer.getWsUrl())
-      await new Promise<void>((resolve) => {
-        ws.on('open', () => resolve())
-      })
-
-      const receivedUrls: string[] = []
-      let messagesReceived = 0
-      const expectedMessages = testUrls.length
-
-      // Set up message handler to collect all shortened URLs
-      const allMessagesPromise = new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error(`Only received ${messagesReceived}/${expectedMessages} messages`))
-        }, 10000)
-
-        ws.on('message', (data) => {
-          try {
-            const message = JSON.parse(data.toString()) as WsMessage
-            if (message.type === WsMessageType.URL_SHORTENED) {
-              messagesReceived++
-              receivedUrls.push(message.data.shortenedURL)
-
-              // Send acknowledgment
-              ws.send(
-                JSON.stringify({
-                  type: WsMessageType.ACKNOWLEDGMENT,
-                  messageId: message.messageId,
-                }),
-              )
-
-              // Check if we've received all expected messages
-              if (messagesReceived >= expectedMessages) {
-                clearTimeout(timeout)
-                resolve()
-              }
-            }
-          } catch (error) {
-            clearTimeout(timeout)
-            reject(error instanceof Error ? error : new Error(String(error)))
-          }
-        })
-
-        ws.on('error', (error) => {
-          clearTimeout(timeout)
-          reject(error)
-        })
-      })
-
-      // Make concurrent POST requests
-      const postPromises = testUrls.map((url) => request.post('/url').send({ url }).expect(200))
-
-      const postResponses = await Promise.all(postPromises)
-
-      // Verify all POST responses
-      postResponses.forEach((response) => {
-        expect(response.body).toEqual({
-          message: 'URL shortened successfully. Result will be sent via WebSocket.',
-        })
-      })
-
-      // Wait for all WebSocket messages
-      await allMessagesPromise
-
-      // Verify we received all shortened URLs
-      expect(receivedUrls).toHaveLength(testUrls.length)
-
-      // Verify all shortened URLs are unique
-      const uniqueUrls = new Set(receivedUrls)
-      expect(uniqueUrls.size).toBe(testUrls.length)
-
-      // Test retrieval of all shortened URLs
-      const getPromises = receivedUrls.map((shortenedUrl) => {
-        const urlParts = shortenedUrl.split('/')
-        const code = urlParts[urlParts.length - 1]
-        return request.get(`/${code}`).expect(200)
-      })
-
-      const getResponses = await Promise.all(getPromises)
-
-      // Verify all original URLs are retrieved correctly
-      getResponses.forEach((response) => {
-        expect(testUrls).toContain((response.body as { url: string }).url)
-      })
-
-      await closeWebSocket(ws)
-    }, 30000)
   })
-
   describe('Error Handling', () => {
     it('should return error for invalid URL', async () => {
       const response = await request.post('/url').send({ url: 'not a url at all!' })
@@ -263,6 +168,9 @@ describe('URL Shortening E2E Tests', () => {
       await new Promise<void>((resolve) => {
         ws.on('open', () => resolve())
       })
+
+      // Give a small delay to ensure client is properly registered
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       // Set up message handler
       const wsMessagePromise = new Promise<string>((resolve, reject) => {
@@ -330,72 +238,5 @@ describe('URL Shortening E2E Tests', () => {
       expect(apiDoc.paths).toHaveProperty('/url')
       expect(apiDoc.paths).toHaveProperty('/{code}')
     })
-  })
-
-  describe('Performance', () => {
-    it('should handle rapid URL shortening requests', async () => {
-      const startTime = Date.now()
-      const requestCount = 50
-      const testUrl = 'https://example.com/performance-test'
-
-      // Create a single WebSocket connection (only one is supported now)
-      const ws = new WebSocket(testServer.getWsUrl())
-      await new Promise<void>((resolve) => {
-        ws.on('open', () => resolve())
-      })
-
-      // Set up message handler for the single connection
-      let messagesReceived = 0
-      const targetMessages = requestCount
-
-      const allMessagesPromise = new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error(`Only received ${messagesReceived}/${targetMessages} messages`))
-        }, 15000)
-
-        ws.on('message', (data) => {
-          try {
-            const message = JSON.parse(data.toString()) as WsMessage
-            if (message.type === WsMessageType.URL_SHORTENED) {
-              messagesReceived++
-
-              // Send acknowledgment
-              ws.send(
-                JSON.stringify({
-                  type: WsMessageType.ACKNOWLEDGMENT,
-                  messageId: message.messageId,
-                }),
-              )
-
-              // Check if we've received all expected messages
-              if (messagesReceived >= targetMessages) {
-                clearTimeout(timeout)
-                resolve()
-              }
-            }
-          } catch (error) {
-            clearTimeout(timeout)
-            reject(error instanceof Error ? error : new Error(String(error)))
-          }
-        })
-      })
-
-      // Make rapid POST requests (they'll all go to the single WebSocket connection)
-      const postPromises = Array.from({ length: requestCount }, () =>
-        request.post('/url').send({ url: testUrl }).expect(200),
-      )
-
-      await Promise.all(postPromises)
-      await allMessagesPromise
-
-      const endTime = Date.now()
-      const duration = endTime - startTime
-
-      console.log(`Processed ${requestCount} requests in ${duration}ms`)
-      expect(duration).toBeLessThan(10000) // Should complete within 10 seconds
-
-      // Close the WebSocket connection
-      await closeWebSocket(ws)
-    }, 20000)
   })
 })

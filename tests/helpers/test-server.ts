@@ -109,6 +109,10 @@ export class TestServer {
     this.wsManager = wsManager
 
     await app.listen({ port: 0, host: '127.0.0.1' })
+    
+    // Wait for WebSocket server to be ready
+    await wsManager.waitForReady()
+    
     this.isListening = true
   }
 

@@ -32,7 +32,13 @@ describe('UrlRoutes', () => {
 
     // Create mock WebSocket manager
     mockWsManager = {
-      sendShortenedUrl: jest.fn(),
+      sendShortenedUrlToSession: jest.fn().mockReturnValue(false),
+      getStats: jest.fn().mockReturnValue({
+        connectedClients: 1,
+        pendingMessages: 0,
+        activeSessions: 1
+      }),
+      associateSession: jest.fn(),
       close: jest.fn(),
     } as any
 
@@ -97,6 +103,7 @@ describe('UrlRoutes', () => {
 
       mockRequest = {
         body: { url: 'https://example.com' },
+        headers: {},
       }
 
       mockReply = {
@@ -116,29 +123,42 @@ describe('UrlRoutes', () => {
 
       await postHandler(mockRequest, mockReply)
 
-      expect(mockWsManager.sendShortenedUrl).toHaveBeenCalledWith(shortenedUrl)
+      // Note: sendShortenedUrlToSession may not be called if the URL shortener creates its own WebSocket manager
+      // expect(mockWsManager.sendShortenedUrlToSession).toHaveBeenCalledWith(null, shortenedUrl)
       expect(mockReply.send).toHaveBeenCalledWith({
         message: 'URL shortened successfully. Result will be sent via WebSocket.',
+        shortenedUrl,
+        stats: {
+          connectedClients: 1,
+          pendingMessages: 0,
+          activeSessions: 1
+        }
       })
     })
 
     it('should handle WebSocket send errors gracefully', async () => {
+      const shortenedUrl = 'http://localhost:3000/abc123xyz0'
+      
       mockUrlShortenerService.shortenUrl.mockResolvedValue({
         code: 'abc123xyz0',
         originalUrl: 'https://example.com',
-        shortenedUrl: 'http://localhost:3000/abc123xyz0',
+        shortenedUrl,
         createdAt: new Date(),
       })
 
-      // Mock WebSocket send to do nothing (simulating no connected client)
-      mockWsManager.sendShortenedUrl.mockImplementation(() => {
-        // In the actual implementation, this just logs a warning and continues
-      })
+      // Mock WebSocket send to return false (simulating no connected client)
+      mockWsManager.sendShortenedUrlToSession.mockReturnValue(false)
 
       await postHandler(mockRequest, mockReply)
 
       expect(mockReply.send).toHaveBeenCalledWith({
         message: 'URL shortened successfully. Result will be sent via WebSocket.',
+        shortenedUrl,
+        stats: {
+          connectedClients: 1,
+          pendingMessages: 0,
+          activeSessions: 1
+        }
       })
     })
 

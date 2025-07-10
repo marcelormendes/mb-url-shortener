@@ -5,6 +5,7 @@ import { UrlStorageService } from '../services/url/url-storage.service.js'
 import { WebSocketManagerService } from '../services/websocket/websocket-manager.service.js'
 import { ShortenUrlHandler } from './shorten-url.handler.js'
 import { GetUrlHandler } from './get-url.handler.js'
+import { WebSocketSessionHandler } from './websocket-session.handler.js'
 import {
   shortenUrlRequestSchema,
   shortenUrlResponseSchemas,
@@ -20,12 +21,14 @@ export class UrlRoutes {
   private readonly urlShortenerService: UrlShortenerService
   private readonly shortenUrlHandler: ShortenUrlHandler
   private readonly getUrlHandler: GetUrlHandler
+  private readonly wsSessionHandler: WebSocketSessionHandler
 
   constructor(private readonly wsManager: WebSocketManagerService) {
     this.urlStorageService = new UrlStorageService()
     this.urlShortenerService = new UrlShortenerService(this.urlStorageService)
     this.shortenUrlHandler = new ShortenUrlHandler(this.urlShortenerService, this.wsManager)
     this.getUrlHandler = new GetUrlHandler(this.urlStorageService)
+    this.wsSessionHandler = new WebSocketSessionHandler(this.wsManager)
   }
 
   /**
@@ -60,6 +63,69 @@ export class UrlRoutes {
         },
       },
       this.getUrlHandler.handle.bind(this.getUrlHandler),
+    )
+
+    // POST /ws/register-session - Register WebSocket session
+    fastify.post(
+      '/ws/register-session',
+      {
+        schema: {
+          body: {
+            type: 'object',
+            required: ['sessionId', 'clientId'],
+            properties: {
+              sessionId: { type: 'string', minLength: 1 },
+              clientId: { type: 'string', minLength: 1 },
+            },
+          },
+          response: {
+            200: {
+              type: 'object',
+              properties: {
+                message: { type: 'string' },
+                sessionId: { type: 'string' },
+                clientId: { type: 'string' },
+                stats: {
+                  type: 'object',
+                  properties: {
+                    connectedClients: { type: 'number' },
+                    pendingMessages: { type: 'number' },
+                    activeSessions: { type: 'number' },
+                  },
+                },
+              },
+            },
+          },
+          tags: ['WebSocket'],
+          summary: 'Register WebSocket session',
+          description: 'Associates a session ID with a WebSocket client ID for targeted messaging',
+        },
+      },
+      this.wsSessionHandler.registerSession.bind(this.wsSessionHandler),
+    )
+
+    // GET /ws/stats - Get WebSocket statistics
+    fastify.get(
+      '/ws/stats',
+      {
+        schema: {
+          response: {
+            200: {
+              type: 'object',
+              properties: {
+                message: { type: 'string' },
+                connectedClients: { type: 'number' },
+                pendingMessages: { type: 'number' },
+                activeSessions: { type: 'number' },
+              },
+            },
+          },
+          tags: ['WebSocket'],
+          summary: 'Get WebSocket statistics',
+          description: 'Returns current WebSocket connection and message statistics',
+        },
+      },
+      this.wsSessionHandler.getStats.bind(this.wsSessionHandler),
     )
   }
 }

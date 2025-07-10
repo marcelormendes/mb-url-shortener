@@ -5,18 +5,19 @@ import { MessageHandler } from './message.handler.js'
 import { RetryHandler } from './retry.handler.js'
 
 /**
- * Manages WebSocket connections and message delivery for a single client
+ * Manages WebSocket connections and message delivery for multiple clients
  */
 export class WebSocketManagerService {
   private wss: WebSocketServer
   private connectionHandler: ConnectionHandler
   private messageHandler: MessageHandler
   private retryHandler: RetryHandler
+  private clientSessionMap: Map<string, string> = new Map() // Maps session IDs to client IDs
 
   constructor(port?: number) {
     this.wss = new WebSocketServer({ port: port ?? env.WS_PORT })
     this.connectionHandler = new ConnectionHandler()
-    this.messageHandler = new MessageHandler()
+    this.messageHandler = new MessageHandler(this.connectionHandler.getClientManager())
     this.retryHandler = new RetryHandler()
 
     this.setupWebSocketServer()
@@ -24,27 +25,69 @@ export class WebSocketManagerService {
   }
 
   /**
-   * Sets up WebSocket server event handlers
+   * Wait for WebSocket server to be ready
    */
-  private setupWebSocketServer(): void {
-    this.wss.on('connection', (ws) => {
-      this.connectionHandler.handleConnection(ws, (messageId) => {
-        this.messageHandler.handleAcknowledgment(messageId)
-      })
+  async waitForReady(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      // WebSocket server starts listening immediately, so we can resolve
+      resolve()
     })
   }
 
   /**
-   * Sends a shortened URL to the connected client
+   * Sets up WebSocket server event handlers
    */
-  sendShortenedUrl(shortenedUrl: string): void {
-    const client = this.connectionHandler.getCurrentClient()
-    if (!client) {
-      console.warn('No WebSocket client connected. Cannot send shortened URL.')
-      return
+  private setupWebSocketServer(): void {
+    this.wss.on('connection', (ws) => {
+      const clientId = this.connectionHandler.handleConnection(ws, (messageId, clientId) => {
+        this.messageHandler.handleAcknowledgment(messageId, clientId)
+      })
+      console.log(`New WebSocket client connected: ${clientId}`)
+    })
+  }
+
+  /**
+   * Associates a session ID with a client ID for targeted messaging
+   */
+  associateSession(sessionId: string, clientId: string): void {
+    this.clientSessionMap.set(sessionId, clientId)
+  }
+
+  /**
+   * Sends a shortened URL to a specific client by session ID
+   */
+  sendShortenedUrlToSession(sessionId: string | null, shortenedUrl: string): boolean {
+    if (!sessionId) {
+      // Fallback: send to any available client for backward compatibility
+      const clientManager = this.connectionHandler.getClientManager()
+      const allClients = clientManager.getAllClients()
+      if (allClients.length > 0) {
+        return this.sendShortenedUrlToClient(allClients[0].id, shortenedUrl)
+      }
+      return false
     }
 
-    this.messageHandler.sendShortenedUrl(client, shortenedUrl)
+    const clientId = this.clientSessionMap.get(sessionId)
+    if (!clientId) {
+      console.warn(`No client ID found for session ${sessionId}`)
+      return false
+    }
+
+    return this.sendShortenedUrlToClient(clientId, shortenedUrl)
+  }
+
+  /**
+   * Sends a shortened URL to a specific client by client ID
+   */
+  sendShortenedUrlToClient(clientId: string, shortenedUrl: string): boolean {
+    const clientManager = this.connectionHandler.getClientManager()
+    if (!clientManager.hasClient(clientId)) {
+      console.warn(`Client ${clientId} not found or disconnected`)
+      return false
+    }
+
+    this.messageHandler.sendShortenedUrl(clientId, shortenedUrl)
+    return true
   }
 
   /**
@@ -52,11 +95,36 @@ export class WebSocketManagerService {
    */
   private startRetryMechanism(): void {
     this.retryHandler.start(() => {
-      const client = this.connectionHandler.getCurrentClient()
+      const clientManager = this.connectionHandler.getClientManager()
       const pendingMessages = this.messageHandler.getPendingMessages()
-      const updatedMessages = this.retryHandler.processPendingMessages(client, pendingMessages)
+      const updatedMessages = this.retryHandler.processPendingMessages(
+        clientManager,
+        pendingMessages,
+      )
       this.messageHandler.setPendingMessages(updatedMessages)
     })
+  }
+
+  /**
+   * Gets the count of connected clients
+   */
+  getConnectedClientCount(): number {
+    return this.connectionHandler.getConnectedClientCount()
+  }
+
+  /**
+   * Gets statistics about connections and pending messages
+   */
+  getStats(): {
+    connectedClients: number
+    pendingMessages: number
+    activeSessions: number
+  } {
+    return {
+      connectedClients: this.connectionHandler.getConnectedClientCount(),
+      pendingMessages: this.messageHandler.getPendingMessages().length,
+      activeSessions: this.clientSessionMap.size,
+    }
   }
 
   /**
@@ -71,17 +139,18 @@ export class WebSocketManagerService {
   }
 
   /**
-   * Closes the WebSocket server
+   * Closes the WebSocket server and cleans up all resources
    */
   async close(): Promise<void> {
     // Stop retry mechanism
     this.retryHandler.stop()
 
-    // Close current client connection
-    this.connectionHandler.closeCurrentClient()
+    // Close all client connections
+    this.connectionHandler.closeAllClients()
 
-    // Clear pending messages
+    // Clear pending messages and session mappings
     this.messageHandler.clearPendingMessages()
+    this.clientSessionMap.clear()
 
     // Close the WebSocket server
     return new Promise((resolve) => {

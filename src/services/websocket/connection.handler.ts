@@ -1,27 +1,26 @@
 import type { WebSocket } from 'ws'
 import type { WsMessage } from '../../types/api.types.js'
 import { WsMessageType } from '../../types/api.types.js'
+import { MultiClientManager } from './multi-client-manager.service.js'
 
 /**
- * Handles WebSocket connection events and message parsing
+ * Handles WebSocket connection events and message parsing for multiple clients
  */
 export class ConnectionHandler {
-  private currentClient: WebSocket | null = null
+  private clientManager: MultiClientManager
+
+  constructor() {
+    this.clientManager = new MultiClientManager()
+  }
 
   /**
    * Handles new WebSocket connection
    */
-  handleConnection(ws: WebSocket, onMessage: (messageId: string) => void): void {
-    // Only allow one client at a time
-    if (this.currentClient) {
-      console.log('New client connected, closing previous connection')
-      const previousClient = this.currentClient
-      this.currentClient = null
-      previousClient.close()
-    }
-
-    this.currentClient = ws
-    console.log('WebSocket client connected')
+  handleConnection(
+    ws: WebSocket,
+    onMessage: (messageId: string, clientId: string) => void,
+  ): string {
+    const clientId = this.clientManager.addClient(ws)
 
     ws.on('message', (data) => {
       try {
@@ -29,40 +28,59 @@ export class ConnectionHandler {
         const message = JSON.parse(rawData) as WsMessage
 
         if (message.type === WsMessageType.ACKNOWLEDGMENT) {
-          onMessage(message.messageId)
+          onMessage(message.messageId, clientId)
         }
+
+        // Update client activity on any message
+        this.clientManager.updateClientActivity(clientId)
       } catch (error) {
-        console.error('Invalid WebSocket message:', error)
+        console.error(`Invalid WebSocket message from client ${clientId}:`, error)
       }
     })
 
     ws.on('close', () => {
-      console.log('WebSocket client disconnected')
-      if (this.currentClient === ws) {
-        this.currentClient = null
-      }
+      console.log(`WebSocket client ${clientId} disconnected`)
+      this.clientManager.removeClient(clientId)
     })
 
     ws.on('error', (error) => {
-      console.error('WebSocket error:', error)
+      console.error(`WebSocket error from client ${clientId}:`, error)
+      this.clientManager.removeClient(clientId)
     })
+
+    ws.on('pong', () => {
+      this.clientManager.updateClientActivity(clientId)
+    })
+
+    return clientId
   }
 
   /**
-   * Gets the current connected client
+   * Gets the multi-client manager instance
    */
-  getCurrentClient(): WebSocket | null {
-    return this.currentClient
+  getClientManager(): MultiClientManager {
+    return this.clientManager
   }
 
   /**
-   * Closes the current client connection
+   * Sends a message to a specific client
    */
-  closeCurrentClient(): void {
-    if (this.currentClient) {
-      this.currentClient.terminate()
-      this.currentClient = null
-    }
+  sendToClient(clientId: string, message: string): boolean {
+    return this.clientManager.sendToClient(clientId, message)
+  }
+
+  /**
+   * Gets the count of connected clients
+   */
+  getConnectedClientCount(): number {
+    return this.clientManager.getClientCount()
+  }
+
+  /**
+   * Closes all client connections
+   */
+  closeAllClients(): void {
+    this.clientManager.closeAll()
   }
 
   /**

@@ -1,19 +1,24 @@
 import { nanoid } from 'nanoid'
-import type { WebSocket } from 'ws'
 import type { WsUrlShortenedMessage } from '../../types/api.types.js'
 import { WsMessageType } from '../../types/api.types.js'
 import type { PendingMessage } from '../../types/websocket.types.js'
+import type { MultiClientManager } from './multi-client-manager.service.js'
 
 /**
- * Handles WebSocket message sending and management
+ * Handles WebSocket message sending and management for multiple clients
  */
 export class MessageHandler {
   private pendingMessages: PendingMessage[] = []
+  private clientManager: MultiClientManager
+
+  constructor(clientManager: MultiClientManager) {
+    this.clientManager = clientManager
+  }
 
   /**
-   * Sends a shortened URL message to the client
+   * Sends a shortened URL message to a specific client
    */
-  sendShortenedUrl(client: WebSocket, shortenedUrl: string): void {
+  sendShortenedUrl(clientId: string, shortenedUrl: string): void {
     const messageId = nanoid()
     const message: WsUrlShortenedMessage = {
       type: WsMessageType.URL_SHORTENED,
@@ -23,6 +28,7 @@ export class MessageHandler {
 
     const pendingMessage: PendingMessage = {
       id: messageId,
+      clientId,
       data: { shortenedURL: shortenedUrl },
       attempts: 1,
       lastAttempt: new Date(),
@@ -30,19 +36,18 @@ export class MessageHandler {
 
     this.pendingMessages.push(pendingMessage)
 
-    try {
-      client.send(JSON.stringify(message))
-    } catch (error) {
-      console.error('Failed to send message to client:', error)
+    const success = this.clientManager.sendToClient(clientId, JSON.stringify(message))
+    if (!success) {
+      console.error(`Failed to send message to client ${clientId}`)
     }
   }
 
   /**
    * Handles message acknowledgment from client
    */
-  handleAcknowledgment(messageId: string): void {
+  handleAcknowledgment(messageId: string, clientId: string): void {
     this.pendingMessages = this.pendingMessages.filter((msg) => msg.id !== messageId)
-    console.log(`Acknowledgment received for message ${messageId}`)
+    console.log(`Acknowledgment received for message ${messageId} from client ${clientId}`)
   }
 
   /**

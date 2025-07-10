@@ -4,9 +4,21 @@
 
 export interface PendingMessage {
   id: string
+  clientId: string
   data: { shortenedURL: string }
   attempts: number
   lastAttempt: Date
+}
+
+export interface ClientConnection {
+  id: string
+  websocket: import('ws').WebSocket
+  connectedAt: Date
+  lastActivity: Date
+}
+
+export interface ClientRegistry {
+  [clientId: string]: ClientConnection
 }
 
 export interface RetryConfig {

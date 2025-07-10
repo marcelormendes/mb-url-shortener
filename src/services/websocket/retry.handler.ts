@@ -1,4 +1,3 @@
-import type { WebSocket } from 'ws'
 import type { WsUrlShortenedMessage } from '../../types/api.types.js'
 import { WsMessageType } from '../../types/api.types.js'
 import type { PendingMessage, RetryConfig } from '../../types/websocket.types.js'
@@ -33,20 +32,18 @@ export class RetryHandler {
   }
 
   /**
-   * Processes pending messages for retry
+   * Processes pending messages for retry with multi-client support
    */
   processPendingMessages(
-    client: WebSocket | null,
+    clientManager: import('./multi-client-manager.service.js').MultiClientManager,
     pendingMessages: PendingMessage[],
   ): PendingMessage[] {
-    if (!client) {
-      return pendingMessages
-    }
-
     const now = new Date()
     return pendingMessages.filter((msg) => {
       if (msg.attempts >= this.config.maxAttempts) {
-        console.error(`Message ${msg.id} failed after ${this.config.maxAttempts} attempts`)
+        console.error(
+          `Message ${msg.id} for client ${msg.clientId} failed after ${this.config.maxAttempts} attempts`,
+        )
         return false
       }
 
@@ -55,21 +52,39 @@ export class RetryHandler {
         return true
       }
 
+      // Check if client is still connected
+      if (!clientManager.hasClient(msg.clientId)) {
+        console.log(`Client ${msg.clientId} disconnected, removing message ${msg.id}`)
+        return false
+      }
+
       try {
         const message: WsUrlShortenedMessage = {
           type: WsMessageType.URL_SHORTENED,
           messageId: msg.id,
           data: msg.data,
         }
-        client.send(JSON.stringify(message))
-        msg.attempts++
-        msg.lastAttempt = now
-        console.log(`Retrying message ${msg.id} (attempt ${msg.attempts})`)
+        const success = clientManager.sendToClient(msg.clientId, JSON.stringify(message))
+        if (success) {
+          msg.attempts++
+          msg.lastAttempt = now
+          console.log(
+            `Retrying message ${msg.id} for client ${msg.clientId} (attempt ${msg.attempts})`,
+          )
+        } else {
+          console.error(`Failed to retry message ${msg.id} for client ${msg.clientId}`)
+          return false
+        }
       } catch (error) {
         if (error instanceof Error) {
-          console.error(`Retry failed for message ${msg.id}:`, error.message)
+          console.error(
+            `Retry failed for message ${msg.id} (client ${msg.clientId}):`,
+            error.message,
+          )
         } else {
-          console.error(`Retry failed for message ${msg.id}: Unknown error`)
+          console.error(
+            `Retry failed for message ${msg.id} (client ${msg.clientId}): Unknown error`,
+          )
         }
       }
 
